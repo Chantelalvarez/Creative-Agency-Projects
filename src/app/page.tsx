@@ -3,6 +3,9 @@
 import { useState } from "react";
 import Header from "@/components/Header";
 import BriefInput from "@/components/BriefInput";
+import StructuredBriefForm from "@/components/StructuredBriefForm";
+import TranscriptInput from "@/components/TranscriptInput";
+import VoiceDictation from "@/components/VoiceDictation";
 import ColorPalette from "@/components/ColorPalette";
 import MoodKeywords from "@/components/MoodKeywords";
 import TypographyDirection from "@/components/TypographyDirection";
@@ -11,11 +14,37 @@ import CreativeDirections from "@/components/CreativeDirections";
 import LoadingSkeleton from "@/components/LoadingSkeleton";
 import { MoodBoard } from "@/lib/types";
 
+type InputMode = "write" | "structured" | "transcript" | "dictate";
+
+const INPUT_MODES: { id: InputMode; label: string; description: string }[] = [
+  {
+    id: "write",
+    label: "Write a Brief",
+    description: "Type or upload a creative brief",
+  },
+  {
+    id: "structured",
+    label: "Create a Brief",
+    description: "Guided step-by-step form",
+  },
+  {
+    id: "transcript",
+    label: "Use a Transcript",
+    description: "Extract from meeting notes",
+  },
+  {
+    id: "dictate",
+    label: "Dictate Notes",
+    description: "Record spoken input",
+  },
+];
+
 export default function Home() {
   const [moodBoard, setMoodBoard] = useState<MoodBoard | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoadingImages, setIsLoadingImages] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inputMode, setInputMode] = useState<InputMode>("write");
 
   const handleGenerate = async (brief: string) => {
     setIsGenerating(true);
@@ -52,9 +81,7 @@ export default function Home() {
 
       if (imagesRes.ok) {
         const { images } = await imagesRes.json();
-        setMoodBoard((prev) =>
-          prev ? { ...prev, images } : null
-        );
+        setMoodBoard((prev) => (prev ? { ...prev, images } : null));
       }
     } catch (err) {
       setError(
@@ -64,6 +91,10 @@ export default function Home() {
     } finally {
       setIsLoadingImages(false);
     }
+  };
+
+  const handleTranscriptBrief = (brief: string) => {
+    handleGenerate(brief);
   };
 
   return (
@@ -81,7 +112,63 @@ export default function Home() {
             Input your creative brief and let AI generate a comprehensive visual
             direction — colours, typography, imagery, and creative strategy.
           </p>
-          <BriefInput onGenerate={handleGenerate} isLoading={isGenerating} />
+
+          {/* Mode Selector */}
+          <div className="mb-8">
+            <p className="font-mono text-[10px] text-cream-muted/50 uppercase tracking-widest mb-3">
+              Choose your input method
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {INPUT_MODES.map((mode) => (
+                <button
+                  key={mode.id}
+                  onClick={() => setInputMode(mode.id)}
+                  disabled={isGenerating}
+                  className={`group border px-3 py-3 text-left transition-all disabled:opacity-50 ${
+                    inputMode === mode.id
+                      ? "border-cream bg-cream/5"
+                      : "border-dark-border hover:border-cream-muted/40"
+                  }`}
+                >
+                  <span
+                    className={`block font-sans text-xs font-semibold ${
+                      inputMode === mode.id
+                        ? "text-cream"
+                        : "text-cream-muted/70 group-hover:text-cream"
+                    }`}
+                  >
+                    {mode.label}
+                  </span>
+                  <span className="block font-mono text-[10px] text-cream-muted/40 mt-0.5">
+                    {mode.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Input Components */}
+          {inputMode === "write" && (
+            <BriefInput onGenerate={handleGenerate} isLoading={isGenerating} />
+          )}
+          {inputMode === "structured" && (
+            <StructuredBriefForm
+              onComplete={handleGenerate}
+              isLoading={isGenerating}
+            />
+          )}
+          {inputMode === "transcript" && (
+            <TranscriptInput
+              onBriefExtracted={handleTranscriptBrief}
+              isLoading={isGenerating}
+            />
+          )}
+          {inputMode === "dictate" && (
+            <VoiceDictation
+              onBriefExtracted={handleTranscriptBrief}
+              isLoading={isGenerating}
+            />
+          )}
         </div>
 
         {/* Error */}
