@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (brief.length > 2000) {
+    if (brief.length > 5000) {
       return NextResponse.json(
-        { error: "Brief must be under 2000 characters." },
+        { error: "Brief must be under 5000 characters." },
         { status: 400 }
       );
     }
