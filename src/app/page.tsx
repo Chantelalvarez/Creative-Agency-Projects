@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Header from "@/components/Header";
-import BriefInput from "@/components/BriefInput";
+import dynamic from "next/dynamic";
+const BriefInput = dynamic(() => import("@/components/BriefInput"), { ssr: false });
 import StructuredBriefForm from "@/components/StructuredBriefForm";
 import TranscriptInput from "@/components/TranscriptInput";
 import VoiceDictation from "@/components/VoiceDictation";
