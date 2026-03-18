@@ -1,12 +1,6 @@
 "use client";
 
 import { useState, useRef } from "react";
-import * as pdfjsLib from "pdfjs-dist";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.mjs",
-  import.meta.url
-).toString();
 
 interface BriefInputProps {
   onGenerate: (brief: string) => void;
@@ -71,6 +65,11 @@ export default function BriefInput({ onGenerate, isLoading }: BriefInputProps) {
   };
 
   const extractTextFromPdf = async (file: File): Promise<string> => {
+    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/legacy/build/pdf.worker.mjs",
+      import.meta.url
+    ).toString();
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const pageTexts: string[] = [];
