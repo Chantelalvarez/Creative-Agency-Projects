@@ -1,6 +1,12 @@
 "use client";
 
 import { useState, useRef } from "react";
+import * as pdfjsLib from "pdfjs-dist";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.mjs",
+  import.meta.url
+).toString();
 
 interface BriefInputProps {
   onGenerate: (brief: string) => void;
@@ -46,16 +52,14 @@ export default function BriefInput({ onGenerate, isLoading }: BriefInputProps) {
     }
 
     try {
-      if (file.type === "application/pdf") {
-        // For PDFs, read as text (basic extraction)
-        const text = await readFileAsText(file);
-        setBrief(text.slice(0, 2000));
-        setFileName(file.name);
+      let text: string;
+      if (file.type === "application/pdf" || ext === ".pdf") {
+        text = await extractTextFromPdf(file);
       } else {
-        const text = await readFileAsText(file);
-        setBrief(text.slice(0, 2000));
-        setFileName(file.name);
+        text = await readFileAsText(file);
       }
+      setBrief(text.slice(0, 2000));
+      setFileName(file.name);
     } catch {
       alert("Failed to read file. Please try again or paste your brief manually.");
     }
@@ -64,6 +68,21 @@ export default function BriefInput({ onGenerate, isLoading }: BriefInputProps) {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const extractTextFromPdf = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pageTexts: string[] = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .map((item) => ("str" in item ? item.str : ""))
+        .join(" ");
+      pageTexts.push(pageText);
+    }
+    return pageTexts.join("\n");
   };
 
   const readFileAsText = (file: File): Promise<string> => {
