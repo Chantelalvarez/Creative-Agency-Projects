@@ -21,7 +21,7 @@ const INPUT_MODES: { id: InputMode; label: string; description: string }[] = [
   {
     id: "write",
     label: "Write a Brief",
-    description: "Type or upload a creative brief",
+    description: "Type your creative brief",
   },
   {
     id: "structured",
