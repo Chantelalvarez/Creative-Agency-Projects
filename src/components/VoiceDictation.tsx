@@ -191,7 +191,7 @@ export default function VoiceDictation({ onComplete, disabled = false }: VoiceDi
             disabled={!transcript.trim() || disabled || isRecording}
             className="border border-cream bg-transparent px-8 py-3 font-sans text-xs font-semibold tracking-[0.2em] text-cream uppercase transition-all hover:bg-cream hover:text-dark disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-cream"
           >
-            Extract Brief →
+            Generate →
           </button>
         </div>
       )}
