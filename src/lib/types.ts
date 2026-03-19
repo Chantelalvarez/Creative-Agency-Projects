@@ -42,3 +42,26 @@ export interface UnsplashImage {
   width: number;
   height: number;
 }
+
+export interface CompetitorBrand {
+  name: string;
+  overview: string;
+  visualStyle: string;
+  targetAudience: string;
+  pricePositioning: string;
+  strengths: string;
+  weaknesses: string;
+}
+
+export interface CompetitorAnalysis {
+  competitors: CompetitorBrand[];
+  marketOpportunity: string;
+}
+
+export interface CreativeDocument {
+  brief: StructuredBrief;
+  competitorAnalysis: CompetitorAnalysis | null;
+  routes: MoodBoardRoute[];
+  routeImages: (UnsplashImage[] | null)[];
+  generatedAt: string;
+}
