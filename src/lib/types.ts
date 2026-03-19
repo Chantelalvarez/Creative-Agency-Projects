@@ -3,7 +3,24 @@ export interface Color {
   name: string;
 }
 
-export interface MoodBoardData {
+export interface StructuredBrief {
+  projectName: string;
+  clientBackground: string;
+  projectScope: string;
+  brandName: string;
+  brandImage: string;
+  targetAudience: string;
+  competitorBrands: string;
+  lookAndFeel: string;
+  colourDirection: string;
+  deliverables: string;
+  timeline: string;
+  otherNotes: string;
+}
+
+export interface MoodBoardRoute {
+  name: string;
+  direction: string;
   colorPalette: Color[];
   moodKeywords: string[];
   typographyDirection: {
@@ -24,10 +41,4 @@ export interface UnsplashImage {
   photographerUrl: string;
   width: number;
   height: number;
-}
-
-export interface MoodBoard {
-  brief: string;
-  data: MoodBoardData;
-  images: UnsplashImage[];
 }

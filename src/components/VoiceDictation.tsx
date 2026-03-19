@@ -3,17 +3,13 @@
 import { useState, useRef, useEffect } from "react";
 
 interface VoiceDictationProps {
-  onBriefExtracted: (brief: string) => void;
-  isLoading: boolean;
+  onComplete: (text: string) => void;
+  disabled?: boolean;
 }
 
-export default function VoiceDictation({
-  onBriefExtracted,
-  isLoading,
-}: VoiceDictationProps) {
+export default function VoiceDictation({ onComplete, disabled = false }: VoiceDictationProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [isExtracting, setIsExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(true);
   const [duration, setDuration] = useState(0);
@@ -56,7 +52,6 @@ export default function VoiceDictation({
           interim += result[0].transcript;
         }
       }
-      // Show interim results appended
       if (interim) {
         setTranscript(finalTranscript + interim);
       }
@@ -95,39 +90,11 @@ export default function VoiceDictation({
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
-  const handleExtract = async () => {
-    if (!transcript.trim()) return;
-    setIsExtracting(true);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/extract-brief", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawInput: transcript.trim(), inputType: "dictation" }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to extract brief.");
-      }
-
-      const { brief } = await res.json();
-      onBriefExtracted(brief);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setIsExtracting(false);
-    }
-  };
-
   const formatDuration = (s: number) => {
     const m = Math.floor(s / 60);
     const sec = s % 60;
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
-
-  const disabled = isLoading || isExtracting;
 
   if (!isSupported) {
     return (
@@ -144,11 +111,7 @@ export default function VoiceDictation({
 
   return (
     <div className="w-full space-y-4">
-      <label className="block font-sans text-xs font-semibold tracking-[0.2em] text-cream-muted uppercase">
-        Voice Dictation
-      </label>
-
-      {/* Recorder */}
+      {/* Recorder control */}
       <div className="flex items-center gap-4 border border-dark-border bg-dark-surface p-4">
         <button
           type="button"
@@ -199,8 +162,8 @@ export default function VoiceDictation({
         <textarea
           value={transcript}
           onChange={(e) => setTranscript(e.target.value)}
-          rows={5}
-          className="w-full resize-none rounded-none border border-dark-border bg-dark-surface px-4 py-3 font-mono text-sm text-cream placeholder:text-cream-muted/40 focus:border-cream-muted focus:outline-none transition-colors"
+          rows={6}
+          className="w-full resize-none border border-dark-border bg-dark-surface px-4 py-3 font-mono text-sm text-cream placeholder:text-cream-muted/40 focus:border-cream-muted focus:outline-none transition-colors"
           disabled={disabled || isRecording}
         />
       )}
@@ -224,25 +187,17 @@ export default function VoiceDictation({
           </button>
           <button
             type="button"
-            onClick={handleExtract}
+            onClick={() => onComplete(transcript)}
             disabled={!transcript.trim() || disabled || isRecording}
             className="border border-cream bg-transparent px-8 py-3 font-sans text-xs font-semibold tracking-[0.2em] text-cream uppercase transition-all hover:bg-cream hover:text-dark disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-cream"
           >
-            {isExtracting ? (
-              <span className="flex items-center gap-2">
-                <span className="inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
-                Processing
-              </span>
-            ) : (
-              "Extract & Generate"
-            )}
+            Extract Brief →
           </button>
         </div>
       )}
 
       <p className="font-mono text-[10px] text-cream-muted/30 leading-relaxed">
-        AI will structure your spoken notes into a creative brief and generate a mood board.
-        You can edit the transcribed text before processing.
+        You can edit the transcribed text before submitting. Claude will extract the key project details.
       </p>
     </div>
   );
