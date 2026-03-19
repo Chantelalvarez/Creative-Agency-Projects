@@ -351,14 +351,18 @@ export default function Home() {
   const handleExportPDF = async () => {
     if (!documentRef.current || !extractedBrief) return;
     setExporting(true);
+    setError(null);
     try {
-      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+      const [jsPDFModule, { default: html2canvas }] = await Promise.all([
         import("jspdf"),
         import("html2canvas"),
       ]);
+      // jsPDF v4 exports the class as default
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const JsPDF = (jsPDFModule as any).default ?? (jsPDFModule as any).jsPDF;
 
       const projectName = extractedBrief.projectName || extractedBrief.brandName || "Creative Package";
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pdf = new JsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const W = pdf.internal.pageSize.getWidth();
       const H = pdf.internal.pageSize.getHeight();
 
@@ -366,22 +370,18 @@ export default function Home() {
       pdf.setFillColor(10, 10, 10);
       pdf.rect(0, 0, W, H, "F");
 
-      pdf.setFillColor(245, 240, 232);
-      pdf.circle(14, 16, 1.5, "F");
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(7);
       pdf.setTextColor(245, 240, 232);
-      pdf.setCharSpace(3);
-      pdf.text("ANTARESLABS", 20, 17);
-      pdf.setCharSpace(0);
+      pdf.text("ANTARESLABS", 14, 17);
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(7);
       pdf.setTextColor(180, 165, 145);
       pdf.text("AI Creative Package", W - 14, 17, { align: "right" });
 
-      pdf.setDrawColor(31, 31, 31);
+      pdf.setDrawColor(50, 50, 50);
       pdf.setLineWidth(0.3);
-      pdf.line(14, 28, W - 14, 28);
+      pdf.line(14, 26, W - 14, 26);
 
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(28);
@@ -400,14 +400,12 @@ export default function Home() {
       }
 
       if (routes.length > 0) {
-        pdf.setDrawColor(31, 31, 31);
+        pdf.setDrawColor(50, 50, 50);
         pdf.line(14, 120, W - 14, 120);
         pdf.setFont("helvetica", "normal");
         pdf.setFontSize(7);
         pdf.setTextColor(180, 165, 145);
-        pdf.setCharSpace(2);
         pdf.text("CREATIVE DIRECTIONS", 14, 130);
-        pdf.setCharSpace(0);
         routes.forEach((r, i) => {
           const y = 142 + i * 18;
           pdf.setFont("helvetica", "bold");
@@ -421,12 +419,11 @@ export default function Home() {
         });
       }
 
-      pdf.setDrawColor(31, 31, 31);
+      pdf.setDrawColor(50, 50, 50);
       pdf.line(14, H - 24, W - 14, H - 24);
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(7);
       pdf.setTextColor(80, 75, 65);
-      pdf.setCharSpace(1);
       pdf.text(
         new Date()
           .toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })
@@ -434,9 +431,8 @@ export default function Home() {
         14,
         H - 14
       );
-      pdf.setCharSpace(0);
 
-      // Content pages
+      // Content pages — screenshot of the document div
       const canvas = await html2canvas(documentRef.current, {
         backgroundColor: "#0a0a0a",
         scale: 1.5,
@@ -463,6 +459,7 @@ export default function Home() {
       );
     } catch (err) {
       console.error("PDF export error:", err);
+      setError("PDF export failed. Please try again.");
     } finally {
       setExporting(false);
     }
