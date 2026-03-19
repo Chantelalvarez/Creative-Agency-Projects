@@ -1,96 +1,79 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
-import { MoodBoardData } from "@/lib/types";
+import { StructuredBrief } from "@/lib/types";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const SYSTEM_PROMPT = `You are a world-class creative director and visual designer. When given a creative brief, you generate comprehensive mood board directions.
+const SYSTEM_PROMPT = `You are a world-class creative director at a leading design agency. Given a structured creative brief, generate exactly 3 DISTINCT mood board routes (A, B, C). Each route must explore a genuinely different creative territory — different mood, colour story, aesthetic, and visual language. They should not be minor variations of each other.
 
-You MUST respond with valid JSON only — no markdown, no explanation, no backticks. Return exactly this structure:
+Return ONLY valid JSON — no markdown, no explanation, no backticks:
 
 {
-  "colorPalette": [
-    { "hex": "#hexcode", "name": "Color Name" }
-  ],
-  "moodKeywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5", "keyword6", "keyword7", "keyword8"],
-  "typographyDirection": {
-    "headingStyle": "Description of heading typography style",
-    "bodyStyle": "Description of body typography style",
-    "notes": "Additional typography guidance"
-  },
-  "visualSearchTerms": ["search term 1", "search term 2", "search term 3", "search term 4", "search term 5", "search term 6"],
-  "creativeDirections": ["Direction 1 - a short sentence", "Direction 2 - a short sentence", "Direction 3 - a short sentence"]
+  "routes": [
+    {
+      "name": "Route A",
+      "direction": "One sentence capturing this route's core creative territory",
+      "colorPalette": [
+        { "hex": "#hexcode", "name": "Descriptive Color Name" }
+      ],
+      "moodKeywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5", "keyword6"],
+      "typographyDirection": {
+        "headingStyle": "Specific heading typography description",
+        "bodyStyle": "Specific body typography description",
+        "notes": "Additional typography guidance"
+      },
+      "visualSearchTerms": ["specific term 1", "specific term 2", "specific term 3", "specific term 4", "specific term 5"],
+      "creativeDirections": ["Direction statement 1", "Direction statement 2", "Direction statement 3"]
+    }
+  ]
 }
 
 Rules:
-- colorPalette: exactly 6 colours with hex codes and descriptive names
-- moodKeywords: 6-8 evocative single words or short phrases
-- typographyDirection: specific, actionable typography guidance
-- visualSearchTerms: 6 specific terms optimised for stock photo search (Unsplash). Be specific and descriptive to get relevant results.
-- creativeDirections: 3 concise creative direction statements`;
+- Exactly 3 routes named "Route A", "Route B", "Route C"
+- colorPalette: exactly 5 colours per route with hex codes and descriptive names
+- moodKeywords: 6-8 evocative words or short phrases per route
+- visualSearchTerms: 5 specific terms optimised for Unsplash photo search — be descriptive to get relevant results
+- creativeDirections: 3 concise actionable statements per route
+- Each route MUST be genuinely distinct in mood, colour story, and aesthetic approach`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { brief } = await request.json();
+    const { brief }: { brief: StructuredBrief } = await request.json();
 
-    if (!brief || typeof brief !== "string" || brief.trim().length === 0) {
-      return NextResponse.json(
-        { error: "A creative brief is required." },
-        { status: 400 }
-      );
+    if (!brief || typeof brief !== "object") {
+      return NextResponse.json({ error: "A structured brief is required." }, { status: 400 });
     }
 
-    if (brief.length > 5000) {
-      return NextResponse.json(
-        { error: "Brief must be under 5000 characters." },
-        { status: 400 }
-      );
+    const briefText = Object.entries(brief)
+      .filter(([, v]) => v && v.trim())
+      .map(([k, v]) => `${k}: ${v}`)
+      .join("\n");
+
+    if (!briefText.trim()) {
+      return NextResponse.json({ error: "Brief has no content." }, { status: 400 });
     }
 
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
+      max_tokens: 4000,
       system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `Creative Brief: ${brief.trim()}`,
-        },
-      ],
+      messages: [{ role: "user", content: `Creative Brief:\n\n${briefText}` }],
     });
 
     const content = message.content[0];
     if (content.type !== "text") {
-      return NextResponse.json(
-        { error: "Unexpected response format from AI." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Unexpected response format." }, { status: 500 });
     }
 
-    const data: MoodBoardData = JSON.parse(content.text);
+    const { routes } = JSON.parse(content.text);
 
-    // Validate structure
-    if (
-      !data.colorPalette ||
-      !data.moodKeywords ||
-      !data.typographyDirection ||
-      !data.visualSearchTerms ||
-      !data.creativeDirections
-    ) {
-      return NextResponse.json(
-        { error: "Invalid mood board data structure." },
-        { status: 500 }
-      );
+    if (!routes || !Array.isArray(routes) || routes.length !== 3) {
+      return NextResponse.json({ error: "Invalid mood board data structure." }, { status: 500 });
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json({ routes });
   } catch (error) {
-    console.error("Generate API error:", error);
-    return NextResponse.json(
-      { error: "Failed to generate mood board. Please try again." },
-      { status: 500 }
-    );
+    console.error("Generate error:", error);
+    return NextResponse.json({ error: "Failed to generate mood boards. Please try again." }, { status: 500 });
   }
 }
