@@ -32,7 +32,7 @@ Rules:
 - Exactly 3 routes named "Route A", "Route B", "Route C"
 - colorPalette: exactly 5 colours per route with hex codes and descriptive names
 - moodKeywords: 6-8 evocative words or short phrases per route
-- visualSearchTerms: 5 specific terms optimised for Unsplash photo search — be descriptive to get relevant results
+- visualSearchTerms: 5 highly specific Unsplash search terms. Each term MUST combine the brand's industry/product category + the specific aesthetic of this route. For example if the client makes organic skincare and Route A is earthy-luxe, write terms like "natural skincare product photography dark moody", "organic botanicals close up editorial", "earth tones luxury packaging minimal". Never use single generic words like "luxury" or "minimal" alone — always combine context + mood + photography style.
 - creativeDirections: 3 concise actionable statements per route
 - Each route MUST be genuinely distinct in mood, colour story, and aesthetic approach`;
 
