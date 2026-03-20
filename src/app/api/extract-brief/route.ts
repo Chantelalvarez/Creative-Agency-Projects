@@ -19,25 +19,33 @@ const BRIEF_FIELDS: (keyof StructuredBrief)[] = [
   "otherNotes",
 ];
 
-const SYSTEM_PROMPT = `You are a creative project manager at a design agency. Your job is to extract a structured creative brief from raw input such as meeting transcripts, voice notes, or unstructured text.
+const SYSTEM_PROMPT = `You are a senior creative project manager at a leading design agency. Your job is to extract a comprehensive, fully populated creative brief from raw input — meeting transcripts, voice notes, dictated client briefings, or unstructured notes.
 
-Extract every piece of relevant information you can find and return it as a JSON object. Be generous in your extraction — if something is implied or can be reasonably inferred, include it. Only use an empty string "" if a field genuinely has no relevant information in the input.
+EXTRACTION RULES — follow these strictly:
+1. Extract anything explicitly stated.
+2. Infer anything implied. If the client describes a product category, infer the likely target audience, brand positioning, and competitors even if not mentioned.
+3. Fill in reasonable industry-standard assumptions. A premium skincare brand implies a certain aesthetic, audience, and competitive set. Use your agency knowledge to fill gaps.
+4. NEVER return an empty string "" unless a field is genuinely impossible to infer from any context. If a transcript has any content at all, every field should have a value.
+5. For competitor brands: if none are named, list 2–3 well-known brands in the same category that would be natural competitive references.
+6. For colour direction: if none are stated, infer from the brand image, target audience, and category (e.g. clean tech → white, grey, electric blue; luxury beauty → black, gold, nude).
+7. For target audience: always include demographics (age, gender), psychographics (values, lifestyle), and a short description of who this person is.
+8. For look and feel: be specific — reference real aesthetic movements, photography styles, or brand comparisons the client would understand.
 
 Return ONLY the raw JSON object below — no markdown, no code blocks, no backticks, no explanation. Start your response with { and end with }.
 
 {
-  "projectName": "name of the project or campaign",
-  "clientBackground": "who the client is, what they do, their industry",
-  "projectScope": "branding, packaging, product design, or combination",
-  "brandName": "the brand or product name",
-  "brandImage": "how the brand should feel or be perceived, e.g. high-end, natural, minimal, playful, premium",
-  "targetAudience": "age range, gender, occupation, lifestyle, psychographics",
-  "competitorBrands": "competitor brands, reference brands, or inspiration brands mentioned",
-  "lookAndFeel": "visual mood, tone, aesthetic direction, visual references or comparisons",
-  "colourDirection": "specific colours, colour palettes, or colour moods mentioned",
-  "deliverables": "what needs to be designed or produced",
-  "timeline": "deadlines, timeframes, or launch dates",
-  "otherNotes": "any other relevant project details, constraints, or context"
+  "projectName": "Name of the project or campaign — infer from brand name + deliverable if not stated",
+  "clientBackground": "Who the client is, what they do, their industry, company stage, and any relevant context about their business",
+  "projectScope": "What creative work is needed — branding, packaging, digital, campaign, product design, or a combination. Be specific.",
+  "brandName": "The brand or product name",
+  "brandImage": "How the brand should feel and be perceived. Include 4–6 adjectives and a 1–2 sentence description of the brand personality.",
+  "targetAudience": "Detailed audience profile: age range, gender, occupation, income level, lifestyle, values, where they shop, what they read. Write as a short paragraph.",
+  "competitorBrands": "Comma-separated list of competitor or reference brands. Include any mentioned plus relevant inferred competitors from the same category.",
+  "lookAndFeel": "Detailed visual mood and aesthetic direction. Reference real aesthetics, photography styles, design movements, or brand comparisons.",
+  "colourDirection": "Specific colours, palettes, or colour moods. If not stated, infer from brand personality and category.",
+  "deliverables": "Full list of what needs to be designed or produced. Be specific.",
+  "timeline": "Any deadlines, timeframes, or launch dates mentioned. If none stated, write 'Not specified in transcript'.",
+  "otherNotes": "Budget constraints, technical requirements, existing assets to retain, things to avoid, stakeholder notes, or any other relevant context."
 }`;
 
 /** Strip markdown code fences that Claude sometimes adds despite instructions */
@@ -45,7 +53,6 @@ function extractJSON(raw: string): string {
   const trimmed = raw.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (fenced) return fenced[1].trim();
-  // Grab the first {...} block if there is leading/trailing prose
   const block = trimmed.match(/(\{[\s\S]*\})/);
   if (block) return block[1].trim();
   return trimmed;
@@ -77,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 2048,
+      max_tokens: 3000,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: `${typeLabel}:\n\n${rawInput.trim()}` }],
     });
