@@ -38,7 +38,11 @@ Rules:
 
 export async function POST(request: NextRequest) {
   try {
-    const { brief }: { brief: StructuredBrief } = await request.json();
+    const body = await request.json();
+    const { brief, uploadContext } = body as {
+      brief: StructuredBrief;
+      uploadContext?: string;
+    };
 
     if (!brief || typeof brief !== "object") {
       return NextResponse.json({ error: "A structured brief is required." }, { status: 400 });
@@ -53,11 +57,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Brief has no content." }, { status: 400 });
     }
 
+    const userContent = uploadContext?.trim()
+      ? `Creative Brief:\n\n${briefText}\n\n---\n\nREFERENCE MATERIALS UPLOADED BY CLIENT (let these directly inform the visual direction, colour palette, and aesthetic approach for each route):\n\n${uploadContext.trim()}`
+      : `Creative Brief:\n\n${briefText}`;
+
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 4000,
       system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: `Creative Brief:\n\n${briefText}` }],
+      messages: [{ role: "user", content: userContent }],
     });
 
     const content = message.content[0];

@@ -58,6 +58,17 @@ export interface CompetitorAnalysis {
   marketOpportunity: string;
 }
 
+export interface UploadedFile {
+  id: string;
+  name: string;
+  fileType: "image" | "pdf" | "video";
+  file: File;
+  previewUrl?: string; // object URL for images, data URL for video first frame
+  videoFrames?: string[]; // base64 JPEG frames extracted client-side
+  isProcessing: boolean;
+  error?: string;
+}
+
 export interface CreativeDocument {
   brief: StructuredBrief;
   competitorAnalysis: CompetitorAnalysis | null;

@@ -30,6 +30,7 @@ EXTRACTION RULES — follow these strictly:
 6. For colour direction: if none are stated, infer from the brand image, target audience, and category (e.g. clean tech → white, grey, electric blue; luxury beauty → black, gold, nude).
 7. For target audience: always include demographics (age, gender), psychographics (values, lifestyle), and a short description of who this person is.
 8. For look and feel: be specific — reference real aesthetic movements, photography styles, or brand comparisons the client would understand.
+9. If uploaded reference materials are provided, use them to enrich look & feel, colour direction, and brand image fields.
 
 Return ONLY the raw JSON object below — no markdown, no code blocks, no backticks, no explanation. Start your response with { and end with }.
 
@@ -70,7 +71,12 @@ function normaliseBrief(parsed: Record<string, unknown>): StructuredBrief {
 
 export async function POST(request: NextRequest) {
   try {
-    const { rawInput, inputType } = await request.json();
+    const body = await request.json();
+    const { rawInput, inputType, uploadContext } = body as {
+      rawInput: string;
+      inputType: string;
+      uploadContext?: string;
+    };
 
     if (!rawInput || typeof rawInput !== "string" || rawInput.trim().length === 0) {
       return NextResponse.json({ error: "Input text is required." }, { status: 400 });
@@ -82,11 +88,15 @@ export async function POST(request: NextRequest) {
 
     const typeLabel = inputType === "dictation" ? "Dictated Notes" : "Meeting Transcript";
 
+    const userContent = uploadContext?.trim()
+      ? `${typeLabel}:\n\n${rawInput.trim()}\n\n---\n\nADDITIONAL CONTEXT FROM UPLOADED REFERENCE MATERIALS (use this to enrich your extraction — especially for look & feel, colour direction, and brand image):\n\n${uploadContext.trim()}`
+      : `${typeLabel}:\n\n${rawInput.trim()}`;
+
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 3000,
       system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: `${typeLabel}:\n\n${rawInput.trim()}` }],
+      messages: [{ role: "user", content: userContent }],
     });
 
     const content = message.content[0];

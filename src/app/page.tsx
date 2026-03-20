@@ -17,8 +17,10 @@ import {
   UnsplashImage,
   CompetitorAnalysis,
   CreativeDocument,
+  UploadedFile,
 } from "@/lib/types";
 import LZString from "lz-string";
+import ContextUploader from "@/components/ContextUploader";
 
 const VoiceDictation = dynamic(() => import("@/components/VoiceDictation"), {
   ssr: false,
@@ -126,8 +128,12 @@ export default function Home() {
   const [loadingCompetitors, setLoadingCompetitors] = useState(false);
   const [competitorError, setCompetitorError] = useState<string | null>(null);
 
+  // ── Context uploads ──────────────────────────────────────────────────────
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+
   // ── Generation progress ──────────────────────────────────────────────────
   const [progBrief, setProgBrief] = useState<ProgressState>("idle");
+  const [progUploads, setProgUploads] = useState<ProgressState>("idle");
   const [progMoodboards, setProgMoodboards] = useState<ProgressState>("idle");
   const [progCompetitors, setProgCompetitors] = useState<ProgressState>("idle");
 
@@ -196,7 +202,8 @@ export default function Home() {
 
   const runGeneration = async (
     brief: StructuredBrief,
-    isRegenerate = false
+    isRegenerate = false,
+    uploadContext = ""
   ) => {
     setError(null);
     setStep("generating");
@@ -252,7 +259,7 @@ export default function Home() {
       const genRes = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brief: resolvedBrief }),
+        body: JSON.stringify({ brief: resolvedBrief, uploadContext }),
       });
       if (!genRes.ok) {
         const d = await genRes.json();
@@ -296,6 +303,25 @@ export default function Home() {
     }
   };
 
+  // Convert UploadedFile to the payload expected by /api/analyze-uploads
+  const prepareUploadPayload = async (files: UploadedFile[]) => {
+    const ready = files.filter((f) => !f.isProcessing && !f.error);
+    return Promise.all(
+      ready.map(async (f) => {
+        if (f.fileType === "video") {
+          return { name: f.name, fileType: "video" as const, videoFrames: f.videoFrames ?? [] };
+        }
+        // Read file as base64
+        const buffer = await f.file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        bytes.forEach((b) => (binary += String.fromCharCode(b)));
+        const data = btoa(binary);
+        return { name: f.name, fileType: f.fileType, mediaType: f.file.type, data };
+      })
+    );
+  };
+
   // Entry point from the input step (has raw text, needs extraction first)
   const handleGenerateFromText = async (
     text: string,
@@ -303,6 +329,7 @@ export default function Home() {
   ) => {
     setError(null);
     setStep("generating");
+    setProgUploads("idle");
     setProgBrief("loading");
     setProgMoodboards("idle");
     setProgCompetitors("idle");
@@ -312,13 +339,36 @@ export default function Home() {
     setCompetitorError(null);
     setActiveRoute(0);
 
-    // Step 1: Extract brief silently
+    // Step 1: Analyze uploads (if any) — runs in parallel with nothing yet
+    let uploadContext = "";
+    const readyUploads = uploadedFiles.filter((f) => !f.isProcessing && !f.error);
+    if (readyUploads.length > 0) {
+      setProgUploads("loading");
+      try {
+        const payload = await prepareUploadPayload(readyUploads);
+        const res = await fetch("/api/analyze-uploads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ files: payload }),
+        });
+        if (res.ok) {
+          const { context } = await res.json();
+          uploadContext = context ?? "";
+        }
+        setProgUploads("done");
+      } catch {
+        // Non-fatal — continue without upload context
+        setProgUploads("done");
+      }
+    }
+
+    // Step 2: Extract brief (with upload context if available)
     let brief: StructuredBrief;
     try {
       const extractRes = await fetch("/api/extract-brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawInput: text.trim(), inputType }),
+        body: JSON.stringify({ rawInput: text.trim(), inputType, uploadContext }),
       });
       if (!extractRes.ok) {
         const d = await extractRes.json();
@@ -335,8 +385,8 @@ export default function Home() {
       return;
     }
 
-    // Step 2: Generate everything in parallel
-    await runGeneration(brief, true);
+    // Step 3: Generate everything in parallel (pass upload context through)
+    await runGeneration(brief, true, uploadContext);
   };
 
   // Entry point from the edit panel (brief already known, skip extraction)
@@ -501,10 +551,12 @@ export default function Home() {
     setCompetitorAnalysis(null);
     setCompetitorError(null);
     setProgBrief("idle");
+    setProgUploads("idle");
     setProgMoodboards("idle");
     setProgCompetitors("idle");
     setError(null);
     setEditPanelOpen(false);
+    setUploadedFiles([]);
   };
 
   const projectName =
@@ -687,6 +739,11 @@ export default function Home() {
               />
             )}
 
+            {/* Context uploads — always visible below input method */}
+            <div className="mt-8 pt-8 border-t border-dark-border">
+              <ContextUploader onChange={setUploadedFiles} />
+            </div>
+
             {error && (
               <div className="mt-6 border border-red-500/30 bg-red-500/5 p-4">
                 <p className="font-mono text-sm text-red-400">{error}</p>
@@ -708,6 +765,9 @@ export default function Home() {
             </div>
 
             <div className="space-y-4">
+              {progUploads !== "idle" && (
+                <ProgressRow label="Analysing reference uploads" state={progUploads} />
+              )}
               <ProgressRow label="Reading transcript" state={progBrief} />
               <ProgressRow label="Generating mood boards" state={progMoodboards} />
               <ProgressRow label="Researching competitors" state={progCompetitors} />
