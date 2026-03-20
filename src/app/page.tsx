@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useSession } from "next-auth/react";
 import Header from "@/components/Header";
 import dynamic from "next/dynamic";
 import EditBriefPanel from "@/components/EditBriefPanel";
@@ -143,7 +144,11 @@ export default function Home() {
   // ── Export ───────────────────────────────────────────────────────────────
   const [exporting, setExporting] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const { data: session } = useSession();
 
   const documentRef = useRef<HTMLDivElement>(null);
 
@@ -535,6 +540,39 @@ export default function Home() {
     }
   };
 
+  // ─── Save project ──────────────────────────────────────────────────────────
+
+  const handleSaveProject = async () => {
+    if (!extractedBrief || saving) return;
+    setSaving(true);
+    try {
+      const doc: CreativeDocument = {
+        brief: extractedBrief,
+        competitorAnalysis: competitorAnalysis ?? null,
+        routes,
+        routeImages,
+        generatedAt: new Date().toISOString(),
+      };
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectName: extractedBrief.projectName || extractedBrief.brandName || "Untitled Project",
+          clientName: extractedBrief.brandName || null,
+          data: doc,
+        }),
+      });
+      if (res.ok) {
+        const { id } = await res.json();
+        setSavedId(id);
+      }
+    } catch {
+      // Non-fatal
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // ─── Reset ─────────────────────────────────────────────────────────────────
 
   const handleStartOver = () => {
@@ -557,6 +595,7 @@ export default function Home() {
     setError(null);
     setEditPanelOpen(false);
     setUploadedFiles([]);
+    setSavedId(null);
   };
 
   const projectName =
@@ -805,6 +844,27 @@ export default function Home() {
 
                 {/* Right: export actions */}
                 <div className="flex items-center gap-2 shrink-0">
+                  {/* Save to account (only shown when logged in) */}
+                  {session?.user && (
+                    <button
+                      onClick={handleSaveProject}
+                      disabled={saving || !!savedId}
+                      className="flex items-center gap-1.5 border border-dark-border px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed text-cream-muted/60 hover:border-cream-muted/60 hover:text-cream-muted"
+                    >
+                      {saving ? (
+                        <span className="inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
+                      ) : savedId ? (
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M2 5L4.5 7.5L8.5 2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      ) : (
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M5 1.5V6.5M5 6.5L3 4.5M5 6.5L7 4.5M1.5 8.5H8.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                      {saving ? "Saving…" : savedId ? "Saved" : "Save"}
+                    </button>
+                  )}
                   <button
                     onClick={handleShareLink}
                     className="flex items-center gap-1.5 border border-dark-border px-3 py-1.5 font-mono text-[10px] text-cream-muted/60 uppercase tracking-widest transition-all hover:border-cream-muted/60 hover:text-cream-muted"
