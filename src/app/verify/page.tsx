@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 
-export default function VerifyPage() {
+function VerifyContent() {
   const params = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<"verifying" | "error">("verifying");
@@ -28,14 +28,7 @@ export default function VerifyPage() {
   }, [params, router]);
 
   return (
-    <div className="min-h-screen bg-dark flex flex-col items-center justify-center px-6">
-      <div className="flex items-center gap-3 mb-16">
-        <div className="h-2 w-2 rounded-full bg-cream" />
-        <span className="font-sans text-sm font-bold tracking-[0.3em] text-cream uppercase">
-          Antareslabs
-        </span>
-      </div>
-
+    <>
       {status === "verifying" ? (
         <div className="text-center">
           <span className="block mx-auto mb-6 h-6 w-6 animate-spin rounded-full border border-cream/30 border-t-cream" />
@@ -57,6 +50,29 @@ export default function VerifyPage() {
           </a>
         </div>
       )}
+    </>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <div className="min-h-screen bg-dark flex flex-col items-center justify-center px-6">
+      <div className="flex items-center gap-3 mb-16">
+        <div className="h-2 w-2 rounded-full bg-cream" />
+        <span className="font-sans text-sm font-bold tracking-[0.3em] text-cream uppercase">
+          Antareslabs
+        </span>
+      </div>
+      <Suspense fallback={
+        <div className="text-center">
+          <span className="block mx-auto mb-6 h-6 w-6 animate-spin rounded-full border border-cream/30 border-t-cream" />
+          <p className="font-mono text-xs text-cream-muted/50 tracking-widest uppercase">
+            Loading…
+          </p>
+        </div>
+      }>
+        <VerifyContent />
+      </Suspense>
     </div>
   );
 }
