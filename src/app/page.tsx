@@ -404,15 +404,11 @@ export default function Home() {
   // ─── Export ────────────────────────────────────────────────────────────────
 
   const handleExportPDF = async () => {
-    if (!documentRef.current || !extractedBrief) return;
+    if (!extractedBrief) return;
     setExporting(true);
     setError(null);
     try {
-      const [jsPDFModule, { default: html2canvas }] = await Promise.all([
-        import("jspdf"),
-        import("html2canvas"),
-      ]);
-      // jsPDF v4 exports the class as default
+      const jsPDFModule = await import("jspdf");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const JsPDF = (jsPDFModule as any).default ?? (jsPDFModule as any).jsPDF;
 
@@ -420,98 +416,220 @@ export default function Home() {
       const pdf = new JsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const W = pdf.internal.pageSize.getWidth();
       const H = pdf.internal.pageSize.getHeight();
+      const ML = 14; // margin left
+      const MR = W - 14; // margin right
+      const TW = W - 28; // text width
+      const dateStr = new Date()
+        .toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })
+        .toUpperCase();
 
-      // Cover page
+      // ── helpers ──────────────────────────────────────────────────────────────
+      const newPage = () => {
+        pdf.addPage();
+        pdf.setFillColor(10, 10, 10);
+        pdf.rect(0, 0, W, H, "F");
+        // header rule
+        pdf.setDrawColor(40, 40, 40);
+        pdf.setLineWidth(0.2);
+        pdf.line(ML, 20, MR, 20);
+        // footer
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(6);
+        pdf.setTextColor(60, 55, 50);
+        pdf.text("ANTARESLABS — AI CREATIVE PACKAGE", ML, H - 10);
+        pdf.text(dateStr, MR, H - 10, { align: "right" });
+        return 28; // starting y
+      };
+
+      const label = (text: string, y: number) => {
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(6.5);
+        pdf.setTextColor(100, 90, 75);
+        pdf.text(text.toUpperCase(), ML, y);
+        return y + 5;
+      };
+
+      const body = (text: string, y: number, maxLines = 999) => {
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        pdf.setTextColor(210, 200, 185);
+        const lines = pdf.splitTextToSize(text, TW).slice(0, maxLines);
+        pdf.text(lines, ML, y);
+        return y + lines.length * 5;
+      };
+
+      const rule = (y: number) => {
+        pdf.setDrawColor(35, 35, 35);
+        pdf.setLineWidth(0.2);
+        pdf.line(ML, y, MR, y);
+        return y + 8;
+      };
+
+      // ── COVER PAGE ───────────────────────────────────────────────────────────
       pdf.setFillColor(10, 10, 10);
       pdf.rect(0, 0, W, H, "F");
 
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(7);
       pdf.setTextColor(245, 240, 232);
-      pdf.text("ANTARESLABS", 14, 17);
+      pdf.text("ANTARESLABS", ML, 17);
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(7);
-      pdf.setTextColor(180, 165, 145);
-      pdf.text("AI Creative Package", W - 14, 17, { align: "right" });
+      pdf.setTextColor(130, 120, 105);
+      pdf.text("AI Creative Package", MR, 17, { align: "right" });
 
       pdf.setDrawColor(50, 50, 50);
       pdf.setLineWidth(0.3);
-      pdf.line(14, 26, W - 14, 26);
+      pdf.line(ML, 26, MR, 26);
 
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(28);
+      pdf.setFontSize(30);
       pdf.setTextColor(245, 240, 232);
-      pdf.text(pdf.splitTextToSize(projectName, W - 28), 14, 70);
+      pdf.text(pdf.splitTextToSize(projectName, TW), ML, 68);
+
+      if (extractedBrief.brandName && extractedBrief.brandName !== projectName) {
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(11);
+        pdf.setTextColor(130, 120, 105);
+        pdf.text(extractedBrief.brandName, ML, 85);
+      }
 
       if (extractedBrief.clientBackground) {
         pdf.setFont("helvetica", "normal");
         pdf.setFontSize(9);
-        pdf.setTextColor(180, 165, 145);
-        pdf.text(
-          pdf.splitTextToSize(extractedBrief.clientBackground, W - 28).slice(0, 3),
-          14,
-          90
-        );
+        pdf.setTextColor(160, 150, 135);
+        pdf.text(pdf.splitTextToSize(extractedBrief.clientBackground, TW).slice(0, 4), ML, 100);
       }
 
       if (routes.length > 0) {
-        pdf.setDrawColor(50, 50, 50);
-        pdf.line(14, 120, W - 14, 120);
+        pdf.setDrawColor(40, 40, 40);
+        pdf.line(ML, 128, MR, 128);
         pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(7);
-        pdf.setTextColor(180, 165, 145);
-        pdf.text("CREATIVE DIRECTIONS", 14, 130);
+        pdf.setFontSize(6.5);
+        pdf.setTextColor(100, 90, 75);
+        pdf.text("CREATIVE DIRECTIONS", ML, 137);
         routes.forEach((r, i) => {
-          const y = 142 + i * 18;
+          const y = 148 + i * 16;
           pdf.setFont("helvetica", "bold");
-          pdf.setFontSize(10);
-          pdf.setTextColor(245, 240, 232);
-          pdf.text(r.name, 14, y);
+          pdf.setFontSize(9);
+          pdf.setTextColor(220, 210, 195);
+          pdf.text(r.name, ML, y);
           pdf.setFont("helvetica", "normal");
           pdf.setFontSize(8);
-          pdf.setTextColor(130, 120, 105);
-          pdf.text(pdf.splitTextToSize(r.direction, W - 44)[0] ?? "", 44, y);
+          pdf.setTextColor(110, 100, 85);
+          pdf.text(pdf.splitTextToSize(r.direction, TW - 20)[0] ?? "", ML + 20, y);
         });
       }
 
-      pdf.setDrawColor(50, 50, 50);
-      pdf.line(14, H - 24, W - 14, H - 24);
+      pdf.setDrawColor(40, 40, 40);
+      pdf.line(ML, H - 22, MR, H - 22);
       pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(7);
-      pdf.setTextColor(80, 75, 65);
-      pdf.text(
-        new Date()
-          .toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })
-          .toUpperCase(),
-        14,
-        H - 14
-      );
+      pdf.setFontSize(6.5);
+      pdf.setTextColor(70, 65, 55);
+      pdf.text(dateStr, ML, H - 12);
 
-      // Content pages — screenshot of the document div
-      const canvas = await html2canvas(documentRef.current, {
-        backgroundColor: "#0a0a0a",
-        scale: 1.5,
-        useCORS: true,
-        logging: false,
-        windowWidth: 1200,
-      });
-      const imgData = canvas.toDataURL("image/jpeg", 0.85);
-      const imgW = W;
-      const imgH = (canvas.height * W) / canvas.width;
-      let remaining = imgH;
-      let offset = 0;
-      while (remaining > 0) {
-        pdf.addPage();
-        pdf.setFillColor(10, 10, 10);
-        pdf.rect(0, 0, W, H, "F");
-        pdf.addImage(imgData, "JPEG", 0, -offset, imgW, imgH);
-        remaining -= H;
-        offset += H;
+      // ── BRIEF PAGE ───────────────────────────────────────────────────────────
+      let y = newPage();
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(14);
+      pdf.setTextColor(245, 240, 232);
+      pdf.text("Project Brief", ML, y); y += 10;
+      y = rule(y);
+
+      const briefFields: [string, string][] = (
+        [
+          ["Project Scope", extractedBrief.projectScope],
+          ["Target Audience", extractedBrief.targetAudience],
+          ["Look & Feel", extractedBrief.lookAndFeel],
+          ["Colour Direction", extractedBrief.colourDirection],
+          ["Deliverables", extractedBrief.deliverables],
+          ["Timeline", extractedBrief.timeline],
+          ["Other Notes", extractedBrief.otherNotes],
+        ] as [string, string][]
+      ).filter(([, v]) => v?.trim());
+
+      for (const [lbl, val] of briefFields) {
+        if (y > H - 30) { y = newPage(); }
+        y = label(lbl, y);
+        y = body(val, y, 4);
+        y += 6;
       }
 
-      pdf.save(
-        `${projectName.toLowerCase().replace(/\s+/g, "-")}-creative-package.pdf`
-      );
+      // ── ROUTE PAGES ──────────────────────────────────────────────────────────
+      routes.forEach((route) => {
+        y = newPage();
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(16);
+        pdf.setTextColor(245, 240, 232);
+        pdf.text(route.name, ML, y); y += 7;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        pdf.setTextColor(140, 130, 115);
+        pdf.text(pdf.splitTextToSize(route.direction, TW), ML, y);
+        y += pdf.splitTextToSize(route.direction, TW).length * 5 + 6;
+        y = rule(y);
+
+        // Colour palette
+        if (route.colorPalette?.length) {
+          y = label("Colour Palette", y);
+          route.colorPalette.forEach((c) => {
+            if (y > H - 20) { y = newPage(); }
+            // swatch
+            const hex = c.hex.replace("#", "");
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            pdf.setFillColor(r, g, b);
+            pdf.rect(ML, y - 3, 6, 4, "F");
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(8);
+            pdf.setTextColor(200, 190, 175);
+            pdf.text(`${c.hex}  ${c.name}`, ML + 9, y);
+            y += 6;
+          });
+          y += 4;
+        }
+
+        // Mood keywords
+        if (route.moodKeywords?.length) {
+          if (y > H - 20) { y = newPage(); }
+          y = label("Mood Keywords", y);
+          pdf.setFont("helvetica", "normal");
+          pdf.setFontSize(8.5);
+          pdf.setTextColor(180, 170, 155);
+          pdf.text(route.moodKeywords.join("  ·  "), ML, y);
+          y += 10;
+        }
+
+        // Typography
+        if (route.typographyDirection) {
+          if (y > H - 30) { y = newPage(); }
+          y = label("Typography", y);
+          const t = route.typographyDirection;
+          if (t.headingStyle) { y = body(`Heading: ${t.headingStyle}`, y); }
+          if (t.bodyStyle) { y = body(`Body: ${t.bodyStyle}`, y); }
+          if (t.notes) { y = body(t.notes, y, 2); }
+          y += 4;
+        }
+
+        // Creative directions
+        if (route.creativeDirections?.length) {
+          if (y > H - 30) { y = newPage(); }
+          y = label("Creative Directions", y);
+          route.creativeDirections.forEach((d) => {
+            if (y > H - 20) { y = newPage(); }
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(8.5);
+            pdf.setTextColor(180, 170, 155);
+            const lines = pdf.splitTextToSize(`— ${d}`, TW);
+            pdf.text(lines, ML, y);
+            y += lines.length * 5 + 2;
+          });
+        }
+      });
+
+      pdf.save(`${projectName.toLowerCase().replace(/\s+/g, "-")}-creative-package.pdf`);
+
     } catch (err) {
       console.error("PDF export error:", err);
       setError("PDF export failed. Please try again.");
