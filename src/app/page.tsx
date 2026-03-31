@@ -35,7 +35,7 @@ type ProgressState = "idle" | "loading" | "done" | "error";
 
 const INPUT_TABS: { id: InputMode; label: string; desc: string }[] = [
   { id: "transcript", label: "Paste Transcript", desc: "Paste meeting notes or Fireflies export" },
-  { id: "upload", label: "Upload File", desc: ".txt or .docx only" },
+  { id: "upload", label: "Upload File", desc: ".pdf, .txt or .docx" },
   { id: "dictate", label: "Dictate Notes", desc: "Record spoken input" },
 ];
 
@@ -160,8 +160,8 @@ export default function Home() {
     setFileError(null);
 
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-    if (![".txt", ".docx"].includes(ext)) {
-      setFileError("Please upload a .txt or .docx file.");
+    if (![".txt", ".docx", ".pdf"].includes(ext)) {
+      setFileError("Please upload a .pdf, .txt or .docx file.");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
@@ -728,7 +728,7 @@ export default function Home() {
                       )}
                       {isParsingFile ? "Reading..." : "Upload File"}
                     </button>
-                    <input ref={fileInputRef} type="file" accept=".txt,.docx" onChange={handleFileUpload} className="hidden" />
+                    <input ref={fileInputRef} type="file" accept=".txt,.docx,.pdf" onChange={handleFileUpload} className="hidden" />
                   </div>
                 </div>
 
@@ -765,7 +765,7 @@ export default function Home() {
                       <path d="M2 17V20C2 21.1046 2.89543 22 4 22H20C21.1046 22 22 21.1046 22 20V17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                     </svg>
                     <p className="font-mono text-sm text-cream-muted/50">Click to upload a file</p>
-                    <p className="font-mono text-[10px] text-cream-muted/30 mt-1">.txt or .docx — max 10MB</p>
+                    <p className="font-mono text-[10px] text-cream-muted/30 mt-1">.pdf, .txt or .docx — max 10MB</p>
                   </button>
                 )}
               </div>

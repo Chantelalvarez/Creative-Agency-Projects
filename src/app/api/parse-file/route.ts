@@ -1,5 +1,7 @@
 import mammoth from "mammoth";
 import { NextRequest, NextResponse } from "next/server";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require("pdf-parse");
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +26,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ text: result.value.slice(0, 10000) });
     }
 
-    return NextResponse.json({ error: "Unsupported file type. Please upload .txt or .docx." }, { status: 400 });
+    if (ext === ".pdf") {
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const result = await pdfParse(buffer);
+      return NextResponse.json({ text: result.text.slice(0, 10000) });
+    }
+
+    return NextResponse.json({ error: "Unsupported file type. Please upload .pdf, .txt or .docx." }, { status: 400 });
   } catch (error) {
     console.error("Parse file error:", error);
     return NextResponse.json({ error: "Failed to parse file." }, { status: 500 });
