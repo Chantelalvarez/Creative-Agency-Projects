@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  const link = `${appUrl}/verify?token=${token}&email=${encodeURIComponent(normalised)}`;
+  const link = `${appUrl}/api/auth/verify?token=${token}&email=${encodeURIComponent(normalised)}`;
 
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev",
