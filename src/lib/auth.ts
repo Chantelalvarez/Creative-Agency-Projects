@@ -19,9 +19,15 @@ export const authOptions: NextAuthOptions = {
         const email = credentials?.email?.toLowerCase().trim();
         const token = credentials?.token?.trim();
 
-        if (!email || !token) return null;
+        console.log("[auth] authorize called", { email, tokenLength: token?.length });
+
+        if (!email || !token) {
+          console.log("[auth] missing email or token");
+          return null;
+        }
 
         if (ALLOWED_EMAILS.length > 0 && !ALLOWED_EMAILS.includes(email)) {
+          console.log("[auth] email not in allowlist", { email, ALLOWED_EMAILS });
           return null;
         }
 
@@ -35,6 +41,8 @@ export const authOptions: NextAuthOptions = {
           .eq("used", false)
           .gt("expires_at", new Date().toISOString())
           .single();
+
+        console.log("[auth] supabase result", { data: !!data, error: error?.message });
 
         if (error || !data) return null;
 
